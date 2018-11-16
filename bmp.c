@@ -4,7 +4,7 @@
 #include <math.h>
 #include "bmp.h"
 
-static enum read_status read_bmp_header(FILE *file, struct bmp_header *header) {
+static enum read_status read_bmp_header(FILE *file, bmp_header *header) {
 
     if (!file) return READ_INVALID_FILE;
 
@@ -37,10 +37,10 @@ pixel *image_get(image *img, uint64_t x, uint64_t y)
 
 image image_create( uint64_t width, uint64_t height) 
 {
-    return (struct image) {
+    return (image) {
             .width = width,
             .height = height,
-            .data = calloc(sizeof(struct pixel), width * height)
+            .data = calloc(sizeof(pixel), width * height)
            };
 }
 
@@ -79,15 +79,15 @@ enum read_status bmp_from_file(char *file_path, image *const img) {
 }
 
 static bmp_header bmp_header_generate(const image *img) {
-    struct bmp_header header;
-    header.file = (struct bmp_file_header) {
+    bmp_header header;
+    header.file = (bmp_file_header) {
             .bfType=0x4D42,
             .bfReserved = 0,
-            .bfOffBits = sizeof(struct bmp_header),
-            .bfSize = (uint32_t) (sizeof(struct bmp_header) + img->width * 3 * img->height)
+            .bfOffBits = sizeof(bmp_header),
+            .bfSize = (uint32_t) (sizeof(bmp_header) + img->width * 3 * img->height)
     };
 
-    header.info = (struct bmp_info_header) {0};
+    header.info = (bmp_info_header) {0};
     header.info.biSizeImage = (uint32_t) ((bmp_padding(img->width) + img->width * 3) * img->height);
     header.info.biSize = 0x28;
     header.info.biWidth = (uint32_t) (img->width);
@@ -98,7 +98,7 @@ static bmp_header bmp_header_generate(const image *img) {
 }
 
 
-enum write_status bmp_to_file(char *file_path, struct image *const img) {
+enum write_status bmp_to_file(char *file_path, image *const img) {
     FILE* file = fopen(file_path, "wb");
 
     if (!file) return WRITE_INVALID_FILE;
@@ -121,14 +121,14 @@ enum write_status bmp_to_file(char *file_path, struct image *const img) {
 
 static void swap_pixel(pixel *left, pixel *right) {
     size_t pixel_size = sizeof(pixel);
-    struct pixel *temp = malloc(sizeof(pixel));
+    pixel *temp = malloc(sizeof(pixel));
     memcpy(temp, left, sizeof(pixel));
     memcpy(left, right, sizeof(pixel));
     memcpy(right, temp, sizeof(pixel));
     free(temp);
 }
 
-int rotate180(struct image *img) {
+int rotate180(image *img) {
     if (!img)
         return 0;
     for (uint64_t i = 0; i < img->height / 2; ++i)
@@ -137,19 +137,19 @@ int rotate180(struct image *img) {
     return 1;
 }
 
-int rotate90(struct image *img) {
+int rotate90(image *img) {
     if (!img)
         return 0;
-    struct pixel *temp = malloc(sizeof(struct pixel));
+    pixel *temp = malloc(sizeof(pixel));
     for (uint64_t i = 0; i < img->height / 2; ++i)
         for (uint64_t j = 0; j < img->width / 2; ++j) {
-            memcpy(temp, image_get(img, i, j), sizeof(struct pixel));
-            memcpy(image_get(img, i, j), image_get(img, j, img->height - i - 1), sizeof(struct pixel));
+            memcpy(temp, image_get(img, i, j), sizeof(pixel));
+            memcpy(image_get(img, i, j), image_get(img, j, img->height - i - 1), sizeof(pixel));
             memcpy(image_get(img, j, img->height - i - 1), image_get(img, img->height - i - 1, img->width - j - 1),
-                   sizeof(struct pixel));
+                   sizeof(pixel));
             memcpy(image_get(img, img->height - i - 1, img->width - j - 1), image_get(img, img->width - j - 1, i),
-                   sizeof(struct pixel));
-            memcpy(image_get(img, img->width - j - 1, i), temp, sizeof(struct pixel));
+                   sizeof(pixel));
+            memcpy(image_get(img, img->width - j - 1, i), temp, sizeof(pixel));
         }
     free(temp);
     return 1;

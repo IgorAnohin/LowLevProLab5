@@ -25,8 +25,8 @@ typedef struct __attribute__((__packed__)) bmp_info_header {
 } bmp_info_header;
 
 typedef struct bmp_header {
-    struct bmp_file_header file;
-    struct bmp_info_header info;
+    bmp_file_header file;
+    bmp_info_header info;
 } bmp_header;
 
 typedef struct pixel {
@@ -36,7 +36,7 @@ typedef struct pixel {
 
 typedef struct image {
     uint64_t width, height;
-    struct pixel *data;
+    pixel *data;
 } image;
 
 
@@ -64,11 +64,11 @@ void image_destroy(image *img);
 enum read_status bmp_from_file(char *file_path, image *const img);
 enum write_status bmp_to_file(char *file_path, image *const img);
 
-int rotate180(struct image * img);
-int rotate90(struct image * img);
+int rotate180(image * img);
+int rotate90(image * img);
 
-void image_destroy(struct image *img);
-image* rotate_corner(struct image * img, int corner);
+void image_destroy(image *img);
+image* rotate_corner(image * img, int corner);
 
 #endif
 
