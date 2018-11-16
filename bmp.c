@@ -5,27 +5,21 @@
 #include <stdlib.h>
 #include <math.h>
 
-static enum read_status read_bmp_header(FILE *file, bmp_header *header) {
-
-    if (!file) return READ_INVALID_FILE;
+static enum read_status read_bmp_header(FILE *file, bmp_header *header) 
+{
 
     if (fread(&header->file, sizeof(header->file), 1, file) != 1) return READ_INVALID_FILE;
 
-    if (header->file.bfType != 0x4D42) return READ_INVALID_BITMAP_FILE_HEADER;
+    if (  (header->file.bfType != 0x4D42)
+       || (header->file.bfReserved)
+       || (fread(&header->info, sizeof(header->info), 1, file) != 1)
+       || (header->info.biSize != 0x28)
+       || (header->info.biWidth < 1 || header->info.biHeight < 1) 
+       || (header->info.biPlanes != 1))
+           return READ_INVALID_BITMAP_INFO_HEADER;
 
-    if (header->file.bfReserved) return READ_INVALID_BITMAP_FILE_HEADER;
-
-    if (fread(&header->info, sizeof(header->info), 1, file) != 1) return READ_INVALID_FILE;
-
-    if (header->info.biSize != 0x28) return READ_FILE_UNSUPPORTED_VERSION;
-
-    if (header->info.biWidth < 1 || header->info.biHeight < 1) return READ_INVALID_BITMAP_INFO_HEADER;
-
-    if (header->info.biPlanes != 1) return READ_INVALID_BITMAP_INFO_HEADER;
-
-    if (header->info.biBitCount != 0x18) return READ_FILE_UNSUPPORTED_VERSION;
-
-    if (header->info.biCompression) return READ_FILE_UNSUPPORTED_VERSION;
+    if ( (header->info.biBitCount != 0x18) || (header->info.biCompression) )
+        return READ_FILE_UNSUPPORTED_VERSION;
 
     return READ_OK;
 }
@@ -54,24 +48,21 @@ void image_destroy(image *img)
 
 static uint64_t bmp_padding(uint64_t width) { return width % 4; }
 
-enum read_status bmp_from_file(char *file_path, image *const img) {
-
+enum read_status bmp_from_file(char *file_path, image *const img) 
+{
     FILE *file = fopen(file_path, "rb");
-
     bmp_header header;
 
-    const enum read_status read_header_stat = read_bmp_header(file, &header);
-    if (read_header_stat != READ_OK) return read_header_stat;
+    int read_status = read_bmp_header(file, &header);
+    if (read_status != READ_OK) return read_status;
 
     fseek(file, header.file.bfOffBits, SEEK_SET);
 
     *img = image_create(header.info.biWidth, header.info.biHeight);
 
-    const uint64_t padding = bmp_padding(img->width);
-
     for (uint64_t i = 0; i < img->height; i++)
         if (fread(image_get(img, 0, i), img->width * PIXEL_SIZE, 1, file)) {
-            fseek(file, padding, SEEK_CUR);
+            fseek(file, bmp_padding(img->width), SEEK_CUR);
         } else {
             image_destroy(img);
             return READ_INVALID_FILE;
@@ -79,7 +70,9 @@ enum read_status bmp_from_file(char *file_path, image *const img) {
     return READ_OK;
 }
 
-static bmp_header bmp_header_generate(const image *img) {
+
+static bmp_header bmp_header_generate(const image *img) 
+{
     bmp_header header;
     header.file = (bmp_file_header) {
             .bfType=0x4D42,
@@ -99,7 +92,8 @@ static bmp_header bmp_header_generate(const image *img) {
 }
 
 
-enum write_status bmp_to_file(char *file_path, image *const img) {
+enum write_status bmp_to_file(char *file_path, image *const img) 
+{
     FILE* file = fopen(file_path, "wb");
 
     if (!file) return WRITE_INVALID_FILE;
@@ -120,7 +114,9 @@ enum write_status bmp_to_file(char *file_path, image *const img) {
     return WRITE_OK;
 }
 
-static void swap_pixel(pixel *left, pixel *right) {
+
+static void swap_pixel(pixel *left, pixel *right) 
+{
     pixel *temp = malloc(PIXEL_SIZE);
     memcpy(temp, left, PIXEL_SIZE);
     memcpy(left, right, PIXEL_SIZE);
@@ -128,30 +124,43 @@ static void swap_pixel(pixel *left, pixel *right) {
     free(temp);
 }
 
-int rotate180(image *img) {
+int rotate180(image *img) 
+{
     if (!img)
         return 0;
     for (uint64_t i = 0; i < img->height / 2; ++i)
         for (uint64_t j = 0; j < img->width; ++j)
-            swap_pixel(image_get(img, i, j), image_get(img, img->height - i - 1, img->width - j - 1));
+            swap_pixel(image_get(img, i, j),
+                       image_get(img, img->height - i - 1, img->width - j - 1));
     return 1;
 }
 
-int rotate90(image *img) {
+
+static void swap_squad(pixel *one, pixel *two, pixel *three, pixel *four) 
+{
+    pixel *temp = malloc(PIXEL_SIZE);
+
+    memcpy(temp, one, PIXEL_SIZE);
+    memcpy(one, two, PIXEL_SIZE);
+    memcpy(two, three, PIXEL_SIZE);
+    memcpy(three, four, PIXEL_SIZE);
+    memcpy(four, temp, PIXEL_SIZE);
+
+    free(temp);
+}
+
+int rotate90(image *img) 
+{
     if (!img)
         return 0;
-    pixel *temp = malloc(PIXEL_SIZE);
     for (uint64_t i = 0; i < img->height / 2; ++i)
         for (uint64_t j = 0; j < img->width / 2; ++j) {
-            memcpy(temp, image_get(img, i, j), PIXEL_SIZE);
-            memcpy(image_get(img, i, j), image_get(img, j, img->height - i - 1), PIXEL_SIZE);
-            memcpy(image_get(img, j, img->height - i - 1), image_get(img, img->height - i - 1, img->width - j - 1),
-                   PIXEL_SIZE);
-            memcpy(image_get(img, img->height - i - 1, img->width - j - 1), image_get(img, img->width - j - 1, i),
-                   PIXEL_SIZE);
-            memcpy(image_get(img, img->width - j - 1, i), temp, PIXEL_SIZE);
+            pixel* one = image_get(img, i, j);
+            pixel* two = image_get(img, j, img->height - i - 1);
+            pixel* three = image_get(img, img->height - i - 1, img->width - j - 1);
+            pixel* four = image_get(img, img->width - j - 1, i);
+            swap_squad(one, two, three, four);
         }
-    free(temp);
     return 1;
 }
 

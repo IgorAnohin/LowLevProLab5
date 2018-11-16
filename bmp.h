@@ -12,6 +12,7 @@ typedef struct __attribute__((__packed__)) {
     uint32_t bfOffBits;
 } bmp_file_header;
 
+
 typedef struct __attribute__((__packed__)) {
     uint32_t biSize;
     uint32_t biWidth;
@@ -26,10 +27,12 @@ typedef struct __attribute__((__packed__)) {
     uint32_t biClrImportant;
 } bmp_info_header;
 
+
 typedef struct bmp_header {
     bmp_file_header file;
     bmp_info_header info;
 } bmp_header;
+
 
 typedef struct pixel {
     uint8_t r, g, b;
@@ -38,7 +41,7 @@ typedef struct pixel {
 #define PIXEL_SIZE sizeof(pixel)
 
 
-typedef struct image {
+typedef struct {
     uint64_t width, height;
     pixel *data;
 } image;
@@ -60,19 +63,15 @@ enum write_status {
 };
 
 pixel *image_get(image *img, uint64_t x, uint64_t y);
-
 image image_create(uint64_t width, uint64_t height);
-
-void image_destroy(image *img);
 
 enum read_status bmp_from_file(char *file_path, image *const img);
 enum write_status bmp_to_file(char *file_path, image *const img);
 
-int rotate180(image * img);
 int rotate90(image * img);
+int rotate180(image * img);
 
 void image_destroy(image *img);
-image* rotate_corner(image * img, int corner);
 
 #endif
 
