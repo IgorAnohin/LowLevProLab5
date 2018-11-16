@@ -1,8 +1,9 @@
+#include "bmp.h"
+
 #include <malloc.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-#include "bmp.h"
 
 static enum read_status read_bmp_header(FILE *file, bmp_header *header) {
 
@@ -40,7 +41,7 @@ image image_create( uint64_t width, uint64_t height)
     return (image) {
             .width = width,
             .height = height,
-            .data = calloc(sizeof(pixel), width * height)
+            .data = calloc(PIXEL_SIZE, width * height)
            };
 }
 
@@ -69,7 +70,7 @@ enum read_status bmp_from_file(char *file_path, image *const img) {
     const uint64_t padding = bmp_padding(img->width);
 
     for (uint64_t i = 0; i < img->height; i++)
-        if (fread(image_get(img, 0, i), img->width * sizeof(pixel), 1, file)) {
+        if (fread(image_get(img, 0, i), img->width * PIXEL_SIZE, 1, file)) {
             fseek(file, padding, SEEK_CUR);
         } else {
             image_destroy(img);
@@ -112,7 +113,7 @@ enum write_status bmp_to_file(char *file_path, image *const img) {
     uint64_t stub = 0;
 
     for (uint64_t i = 0; i < img->height; i++)
-        if (!fwrite(image_get(img, 0, i), img->width * sizeof(pixel), 1, file)
+        if (!fwrite(image_get(img, 0, i), img->width * PIXEL_SIZE, 1, file)
            || (padding && !fwrite(&stub, padding, 1, file)))
             return WRITE_INVALID_FILE;
 
@@ -120,11 +121,10 @@ enum write_status bmp_to_file(char *file_path, image *const img) {
 }
 
 static void swap_pixel(pixel *left, pixel *right) {
-    size_t pixel_size = sizeof(pixel);
-    pixel *temp = malloc(sizeof(pixel));
-    memcpy(temp, left, sizeof(pixel));
-    memcpy(left, right, sizeof(pixel));
-    memcpy(right, temp, sizeof(pixel));
+    pixel *temp = malloc(PIXEL_SIZE);
+    memcpy(temp, left, PIXEL_SIZE);
+    memcpy(left, right, PIXEL_SIZE);
+    memcpy(right, temp, PIXEL_SIZE);
     free(temp);
 }
 
@@ -140,16 +140,16 @@ int rotate180(image *img) {
 int rotate90(image *img) {
     if (!img)
         return 0;
-    pixel *temp = malloc(sizeof(pixel));
+    pixel *temp = malloc(PIXEL_SIZE);
     for (uint64_t i = 0; i < img->height / 2; ++i)
         for (uint64_t j = 0; j < img->width / 2; ++j) {
-            memcpy(temp, image_get(img, i, j), sizeof(pixel));
-            memcpy(image_get(img, i, j), image_get(img, j, img->height - i - 1), sizeof(pixel));
+            memcpy(temp, image_get(img, i, j), PIXEL_SIZE);
+            memcpy(image_get(img, i, j), image_get(img, j, img->height - i - 1), PIXEL_SIZE);
             memcpy(image_get(img, j, img->height - i - 1), image_get(img, img->height - i - 1, img->width - j - 1),
-                   sizeof(pixel));
+                   PIXEL_SIZE);
             memcpy(image_get(img, img->height - i - 1, img->width - j - 1), image_get(img, img->width - j - 1, i),
-                   sizeof(pixel));
-            memcpy(image_get(img, img->width - j - 1, i), temp, sizeof(pixel));
+                   PIXEL_SIZE);
+            memcpy(image_get(img, img->width - j - 1, i), temp, PIXEL_SIZE);
         }
     free(temp);
     return 1;

@@ -1,16 +1,18 @@
 #ifndef _BMP_H_
-#include <stdint.h>
-#include <stdio.h>
 #define _BMP_H_
 
-typedef struct __attribute__((__packed__)) bmp_file_header {
+#include <stdint.h>
+#include <stdio.h>
+
+
+typedef struct __attribute__((__packed__)) {
     uint16_t bfType;
     uint32_t bfSize;
     uint32_t bfReserved;
     uint32_t bfOffBits;
 } bmp_file_header;
 
-typedef struct __attribute__((__packed__)) bmp_info_header {
+typedef struct __attribute__((__packed__)) {
     uint32_t biSize;
     uint32_t biWidth;
     uint32_t biHeight;
@@ -32,6 +34,8 @@ typedef struct bmp_header {
 typedef struct pixel {
     uint8_t r, g, b;
 } pixel;
+
+#define PIXEL_SIZE sizeof(pixel)
 
 
 typedef struct image {
